@@ -49,6 +49,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +65,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.function.Consumer;
 
 /**
  * Class representing the streaming topology. It contains all the information
@@ -74,6 +77,8 @@ import java.util.Set;
 public class StreamGraph extends StreamingPlan {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
+
+	private static final Set<Consumer<JobGraph>> JOB_GRAPH_TRANSFORMERS = new CopyOnWriteArraySet<>();
 
 	private String jobName = StreamExecutionEnvironment.DEFAULT_JOB_NAME;
 
@@ -102,6 +107,18 @@ public class StreamGraph extends StreamingPlan {
 
 		// create an empty new stream graph.
 		clear();
+	}
+
+	@Internal
+	public static void registerJobGraphTransformer(Consumer<JobGraph> jobGraphTransformer) {
+		Preconditions.checkNotNull(jobGraphTransformer);
+		JOB_GRAPH_TRANSFORMERS.add(jobGraphTransformer);
+	}
+
+	@Internal
+	public static void unregisterJobGraphTransformer(Consumer<JobGraph> jobGraphTransformer) {
+		Preconditions.checkNotNull(jobGraphTransformer);
+		JOB_GRAPH_TRANSFORMERS.remove(jobGraphTransformer);
 	}
 
 	/**
@@ -653,8 +670,9 @@ public class StreamGraph extends StreamingPlan {
 							+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
 							+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
 		}
-
-		return StreamingJobGraphGenerator.createJobGraph(this);
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(this);
+		JOB_GRAPH_TRANSFORMERS.forEach(t -> t.accept(jobGraph));
+		return jobGraph;
 	}
 
 	@Override

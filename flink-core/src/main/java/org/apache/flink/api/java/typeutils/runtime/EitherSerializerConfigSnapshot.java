@@ -21,12 +21,18 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.types.Either;
 
 /**
  * Configuration snapshot for serializers of the {@link Either} type,
  * containing configuration snapshots of the Left and Right serializers.
+ *
+ * <p>We need to retain this for backwards compatibility, because this class is shared
+ * between the Java Either Serializer and the Scala Either Serializer.
  */
+@Deprecated
 @Internal
 public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSerializerConfigSnapshot<Either<L, R>> {
 
@@ -42,5 +48,40 @@ public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSer
 	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public <NS extends TypeSerializer<Either<L, R>>> TypeSerializerSchemaCompatibility<Either<L, R>, NS>
+	resolveSchemaCompatibility(NS newSerializer) {
+
+		// this class was shared between the Java Either Serializer and the
+		// Scala Either serializer
+		if (newSerializer.getClass() == EitherSerializer.class) {
+
+			// Java Serializer case
+			EitherSerializer<L, R> serializer = (EitherSerializer<L, R>) newSerializer;
+			TypeSerializer<L> leftSerializer = serializer.getLeftSerializer();
+			TypeSerializer<R> rightSerializer = serializer.getRightSerializer();
+
+			TypeSerializerSnapshot<L> leftSnapshot = (TypeSerializerSnapshot<L>) getNestedSerializersAndConfigs().get(0).f1;
+			TypeSerializerSnapshot<R> rightSnapshot = (TypeSerializerSnapshot<R>) getNestedSerializersAndConfigs().get(1).f1;
+
+			TypeSerializerSchemaCompatibility<?, ?> leftCompatibility = leftSnapshot.resolveSchemaCompatibility(leftSerializer);
+			TypeSerializerSchemaCompatibility<?, ?> rightCompatibility = rightSnapshot.resolveSchemaCompatibility(rightSerializer);
+
+			if (leftCompatibility.isCompatibleAsIs() && rightCompatibility.isCompatibleAsIs()) {
+				return TypeSerializerSchemaCompatibility.compatibleAsIs();
+			}
+			if (leftCompatibility.isCompatibleAfterMigration() && rightCompatibility.isCompatibleAfterMigration()) {
+				return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+			}
+			return TypeSerializerSchemaCompatibility.incompatible();
+		}
+		else {
+			// Scala Either Serializer, or other.
+			// fall back to the backwards compatibility path
+			return super.resolveSchemaCompatibility(newSerializer);
+		}
 	}
 }

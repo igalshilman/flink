@@ -48,6 +48,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.eventually;
 import static org.apache.flink.metrics.jmx.JMXReporter.JMX_DOMAIN_PREFIX;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -246,8 +247,11 @@ public class JMXReporterTest extends TestLogger {
 
 			ObjectName objectName = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager." + histogramName, JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
 
-			MBeanInfo info = mBeanServer.getMBeanInfo(objectName);
+			eventually(javax.management.InstanceNotFoundException.class, () -> {
+					mBeanServer.getMBeanInfo(objectName);
+			});
 
+			MBeanInfo info = mBeanServer.getMBeanInfo(objectName);
 			MBeanAttributeInfo[] attributeInfos = info.getAttributes();
 
 			assertEquals(11, attributeInfos.length);
@@ -294,6 +298,10 @@ public class JMXReporterTest extends TestLogger {
 			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
 			ObjectName objectName = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager." + meterName, JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
+
+			eventually(javax.management.InstanceNotFoundException.class, () -> {
+				mBeanServer.getMBeanInfo(objectName);
+			});
 
 			MBeanInfo info = mBeanServer.getMBeanInfo(objectName);
 

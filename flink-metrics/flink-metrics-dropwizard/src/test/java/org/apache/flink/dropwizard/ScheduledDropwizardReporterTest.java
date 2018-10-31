@@ -48,6 +48,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.eventually;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -115,8 +116,10 @@ public class ScheduledDropwizardReporterTest {
 
 		TestingScheduledDropwizardReporter reporter = (TestingScheduledDropwizardReporter) metricReporter;
 
-		Map<Counter, String> counters = reporter.getCounters();
-		assertTrue(counters.containsKey(myCounter));
+		eventually(() -> {
+			Map<Counter, String> counters = reporter.getCounters();
+			assertTrue(counters.containsKey(myCounter));
+		});
 
 		Map<Meter, String> meters = reporter.getMeters();
 		assertTrue(meters.containsKey(meterWrapper));
@@ -129,6 +132,7 @@ public class ScheduledDropwizardReporterTest {
 			+ delimiter
 			+ reporter.filterCharacters(counterName);
 
+		Map<Counter, String> counters = reporter.getCounters();
 		assertEquals(expectedCounterName, counters.get(myCounter));
 
 		metricRegistry.shutdown().get();

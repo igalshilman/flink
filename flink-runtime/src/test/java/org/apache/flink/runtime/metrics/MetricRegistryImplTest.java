@@ -42,11 +42,12 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.Await;
 import scala.concurrent.duration.FiniteDuration;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.flink.core.testutils.CommonTestUtils.eventually;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -252,19 +253,21 @@ public class MetricRegistryImplTest extends TestLogger {
 		TaskManagerMetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 		root.counter("rootCounter");
 
-		assertTrue(TestReporter6.addedMetric instanceof Counter);
-		assertEquals("rootCounter", TestReporter6.addedMetricName);
+		eventually(() -> {
+			assertTrue(TestReporter6.addedMetric instanceof Counter);
+			assertEquals("rootCounter", TestReporter6.addedMetricName);
 
-		assertTrue(TestReporter7.addedMetric instanceof Counter);
-		assertEquals("rootCounter", TestReporter7.addedMetricName);
+			assertTrue(TestReporter7.addedMetric instanceof Counter);
+			assertEquals("rootCounter", TestReporter7.addedMetricName);
 
-		root.close();
+			root.close();
 
-		assertTrue(TestReporter6.removedMetric instanceof Counter);
-		assertEquals("rootCounter", TestReporter6.removedMetricName);
+			assertTrue(TestReporter6.removedMetric instanceof Counter);
+			assertEquals("rootCounter", TestReporter6.removedMetricName);
 
-		assertTrue(TestReporter7.removedMetric instanceof Counter);
-		assertEquals("rootCounter", TestReporter7.removedMetricName);
+			assertTrue(TestReporter7.removedMetric instanceof Counter);
+			assertEquals("rootCounter", TestReporter7.removedMetricName);
+		});
 
 		registry.shutdown().get();
 	}
@@ -393,9 +396,13 @@ public class MetricRegistryImplTest extends TestLogger {
 		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "host", "id");
 		group.counter("C");
 		group.close();
+
+		eventually(() -> {
+			assertEquals(4, TestReporter8.numCorrectDelimitersForRegister);
+			assertEquals(4, TestReporter8.numCorrectDelimitersForUnregister);
+		});
+
 		registry.shutdown().get();
-		assertEquals(4, TestReporter8.numCorrectDelimitersForRegister);
-		assertEquals(4, TestReporter8.numCorrectDelimitersForUnregister);
 	}
 
 	/**
@@ -403,7 +410,7 @@ public class MetricRegistryImplTest extends TestLogger {
 	 */
 	@Test
 	public void testQueryActorShutdown() throws Exception {
-		final FiniteDuration timeout = new FiniteDuration(10L, TimeUnit.SECONDS);
+		final FiniteDuration timeout = new FiniteDuration(10L, SECONDS);
 
 		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 
@@ -461,13 +468,15 @@ public class MetricRegistryImplTest extends TestLogger {
 		Counter metric = new SimpleCounter();
 		registry.register(metric, "counter", new MetricGroupTest.DummyAbstractMetricGroup(registry));
 
-		assertEquals(metric, TestReporter7.addedMetric);
-		assertEquals("counter", TestReporter7.addedMetricName);
+		eventually(() -> {
+				assertEquals(metric, TestReporter7.addedMetric);
+				assertEquals("counter", TestReporter7.addedMetricName);
 
-		registry.unregister(metric, "counter", new MetricGroupTest.DummyAbstractMetricGroup(registry));
+				registry.unregister(metric, "counter", new MetricGroupTest.DummyAbstractMetricGroup(registry));
 
-		assertEquals(metric, TestReporter7.removedMetric);
-		assertEquals("counter", TestReporter7.removedMetricName);
+				assertEquals(metric, TestReporter7.removedMetric);
+				assertEquals("counter", TestReporter7.removedMetricName);
+			});
 
 		registry.shutdown().get();
 	}

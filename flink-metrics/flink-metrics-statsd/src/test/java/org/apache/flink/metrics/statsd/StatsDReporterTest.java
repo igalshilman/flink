@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.eventually;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -112,7 +113,9 @@ public class StatsDReporterTest extends TestLogger {
 
 		Map<Counter, String> counters = reporter.getCounters();
 
-		assertTrue(counters.containsKey(myCounter));
+		eventually(() -> {
+			assertTrue(counters.containsKey(myCounter));
+		});
 
 		String expectedCounterName = reporter.filterCharacters(hostname)
 			+ delimiter

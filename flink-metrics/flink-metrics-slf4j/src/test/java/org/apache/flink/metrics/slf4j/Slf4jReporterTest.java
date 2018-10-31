@@ -40,6 +40,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.eventually;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -87,7 +88,9 @@ public class Slf4jReporterTest extends TestLogger {
 		SimpleCounter counter = new SimpleCounter();
 		taskMetricGroup.counter(counterName, counter);
 
-		assertTrue(reporter.getCounters().containsKey(counter));
+		eventually(() -> {
+			assertTrue(reporter.getCounters().containsKey(counter));
+		});
 
 		String expectedCounterReport = reporter.filterCharacters(HOST_NAME) + delimiter
 			+ reporter.filterCharacters(TASK_MANAGER_ID) + delimiter + reporter.filterCharacters(JOB_NAME) + delimiter
@@ -106,7 +109,9 @@ public class Slf4jReporterTest extends TestLogger {
 
 		Gauge<Long> gauge = () -> null;
 		taskMetricGroup.gauge(gaugeName, gauge);
-		assertTrue(reporter.getGauges().containsKey(gauge));
+		eventually(() -> {
+			assertTrue(reporter.getGauges().containsKey(gauge));
+		});
 
 		String expectedGaugeReport = reporter.filterCharacters(HOST_NAME) + delimiter
 			+ reporter.filterCharacters(TASK_MANAGER_ID) + delimiter + reporter.filterCharacters(JOB_NAME) + delimiter
@@ -121,7 +126,7 @@ public class Slf4jReporterTest extends TestLogger {
 		String meterName = "meter";
 
 		Meter meter = taskMetricGroup.meter(meterName, new MeterView(5));
-		assertTrue(reporter.getMeters().containsKey(meter));
+		eventually(() -> assertTrue(reporter.getMeters().containsKey(meter)));
 
 		String expectedMeterReport = reporter.filterCharacters(HOST_NAME) + delimiter
 			+ reporter.filterCharacters(TASK_MANAGER_ID) + delimiter + reporter.filterCharacters(JOB_NAME) + delimiter
@@ -136,7 +141,7 @@ public class Slf4jReporterTest extends TestLogger {
 		String histogramName = "histogram";
 
 		Histogram histogram = taskMetricGroup.histogram(histogramName, new TestHistogram());
-		assertTrue(reporter.getHistograms().containsKey(histogram));
+		eventually(() -> assertTrue(reporter.getHistograms().containsKey(histogram)));
 
 		String expectedHistogramName = reporter.filterCharacters(HOST_NAME) + delimiter
 			+ reporter.filterCharacters(TASK_MANAGER_ID) + delimiter + reporter.filterCharacters(JOB_NAME) + delimiter

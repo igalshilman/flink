@@ -316,6 +316,15 @@ public class MetricRegistryImpl implements MetricRegistry {
 
 	@Override
 	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+		executor.execute(() -> registerInternally(metric, metricName, group));
+	}
+
+	@Override
+	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
+		executor.execute(() -> unregisterInternally(metric, metricName, group));
+	}
+
+	private void registerInternally(Metric metric, String metricName, AbstractMetricGroup group) {
 		synchronized (lock) {
 			if (isShutdown()) {
 				LOG.warn("Cannot register metric, because the MetricRegistry has already been shut down.");
@@ -354,8 +363,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 		}
 	}
 
-	@Override
-	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
+	private void unregisterInternally(Metric metric, String metricName, AbstractMetricGroup group) {
 		synchronized (lock) {
 			if (isShutdown()) {
 				LOG.warn("Cannot unregister metric, because the MetricRegistry has already been shut down.");
@@ -363,7 +371,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 				if (reporters != null) {
 					for (int i = 0; i < reporters.size(); i++) {
 						try {
-						MetricReporter reporter = reporters.get(i);
+							MetricReporter reporter = reporters.get(i);
 							if (reporter != null) {
 								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
 								reporter.notifyOfRemovedMetric(metric, metricName, front);

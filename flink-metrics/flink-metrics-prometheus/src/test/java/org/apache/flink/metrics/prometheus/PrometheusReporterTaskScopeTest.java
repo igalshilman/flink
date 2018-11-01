@@ -42,6 +42,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.eventually;
 import static org.apache.flink.metrics.prometheus.PrometheusReporterTest.createConfigWithOneReporter;
 import static org.apache.flink.metrics.prometheus.PrometheusReporterTest.pollMetrics;
 import static org.hamcrest.Matchers.containsString;
@@ -106,10 +107,12 @@ public class PrometheusReporterTaskScopeTest {
 		taskMetricGroup1.counter("my_counter", counter1);
 		taskMetricGroup2.counter("my_counter", counter2);
 
-		assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
-			equalTo(1.));
-		assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues2),
-			equalTo(2.));
+		eventually(() -> {
+			assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
+				equalTo(1.));
+			assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues2),
+				equalTo(2.));
+		});
 	}
 
 	@Test
@@ -130,10 +133,12 @@ public class PrometheusReporterTaskScopeTest {
 		taskMetricGroup1.gauge("my_gauge", gauge1);
 		taskMetricGroup2.gauge("my_gauge", gauge2);
 
-		assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_gauge", LABEL_NAMES, labelValues1),
-			equalTo(3.));
-		assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_gauge", LABEL_NAMES, labelValues2),
-			equalTo(4.));
+		eventually(() -> {
+			assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_gauge", LABEL_NAMES, labelValues1),
+				equalTo(3.));
+			assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_gauge", LABEL_NAMES, labelValues2),
+				equalTo(4.));
+		});
 	}
 
 	@Test
@@ -143,10 +148,12 @@ public class PrometheusReporterTaskScopeTest {
 		taskMetricGroup1.meter("my_meter", meter);
 		taskMetricGroup2.meter("my_meter", meter);
 
-		assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_meter", LABEL_NAMES, labelValues1),
-			equalTo(5.));
-		assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_meter", LABEL_NAMES, labelValues2),
-			equalTo(5.));
+		eventually(() -> {
+			assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_meter", LABEL_NAMES, labelValues1),
+				equalTo(5.));
+			assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_meter", LABEL_NAMES, labelValues2),
+				equalTo(5.));
+		});
 	}
 
 	@Test
@@ -179,18 +186,22 @@ public class PrometheusReporterTaskScopeTest {
 		taskMetricGroup1.counter("my_counter", counter1);
 		taskMetricGroup2.counter("my_counter", counter2);
 
-		assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
-			equalTo(1.));
-		assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues2),
-			equalTo(2.));
+		eventually(() -> {
+			assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
+				equalTo(1.));
+			assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues2),
+				equalTo(2.));
+		});
 
 		taskMetricGroup2.close();
-		assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
-			equalTo(1.));
+		eventually(() -> assertThat(
+			CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
+			equalTo(1.)));
 
 		taskMetricGroup1.close();
-		assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
-			nullValue());
+		eventually(() -> assertThat(
+			CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
+			nullValue()));
 	}
 
 	private String[] addToArray(String[] array, String element) {

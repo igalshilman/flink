@@ -34,6 +34,8 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Map;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 /**
  * This class contains reusable utility methods for unit tests.
  */
@@ -284,5 +286,48 @@ public class CommonTestUtils {
 		}
 
 		return false;
+	}
+
+	/**
+	 * A variant of Runnable, but declare a Throwable exception.
+	 */
+	@FunctionalInterface
+	public interface ThrowingRunnable {
+		void run() throws Throwable;
+	}
+
+	/**
+	 * Eventually - would execute the provided block of assertions multiple times, until success or timeout (1 second).
+	 * This method is useful when testing asynchronous idempotent code.
+	 */
+	public static void eventually(Runnable code) {
+		eventually(AssertionError.class, code::run);
+	}
+
+	/**
+	 * Executes the provided block, multipule times (up to 1 second) and retrying as long as  temporallyAllowed exception
+	 * is thrown.
+	 */
+	public static <E extends Throwable> void eventually(Class<E> temporallyAllowed, ThrowingRunnable block)  throws E {
+		E lastExceptionThrown;
+		final long start = System.nanoTime();
+		final long timeoutNanos = SECONDS.toNanos(1);
+		do {
+			try {
+				block.run();
+				return;
+			} catch (Throwable t) {
+				if (temporallyAllowed.isInstance(t))  {
+					lastExceptionThrown = temporallyAllowed.cast(t);
+				}
+				else {
+					@SuppressWarnings("unchecked")
+					E sneakyThrow = (E) t;
+					throw sneakyThrow;
+				}
+				Thread.yield();
+			}
+		} while ((System.nanoTime() - start) <= timeoutNanos);
+		throw lastExceptionThrown;
 	}
 }

@@ -34,6 +34,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.eventually;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -53,8 +54,10 @@ public class MetricGroupRegistrationTest extends TestLogger {
 		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 
 		Counter counter = root.counter("counter");
-		assertEquals(counter, TestReporter1.lastPassedMetric);
-		assertEquals("counter", TestReporter1.lastPassedName);
+		eventually(() -> {
+			assertEquals(counter, TestReporter1.lastPassedMetric);
+			assertEquals("counter", TestReporter1.lastPassedName);
+		});
 
 		Gauge<Object> gauge = root.gauge("gauge", new Gauge<Object>() {
 			@Override
@@ -63,8 +66,10 @@ public class MetricGroupRegistrationTest extends TestLogger {
 			}
 		});
 
-		Assert.assertEquals(gauge, TestReporter1.lastPassedMetric);
-		assertEquals("gauge", TestReporter1.lastPassedName);
+		eventually(() -> {
+			Assert.assertEquals(gauge, TestReporter1.lastPassedMetric);
+			assertEquals("gauge", TestReporter1.lastPassedName);
+		});
 
 		Histogram histogram = root.histogram("histogram", new Histogram() {
 			@Override
@@ -83,8 +88,10 @@ public class MetricGroupRegistrationTest extends TestLogger {
 			}
 		});
 
-		Assert.assertEquals(histogram, TestReporter1.lastPassedMetric);
-		assertEquals("histogram", TestReporter1.lastPassedName);
+		eventually(() -> {
+			Assert.assertEquals(histogram, TestReporter1.lastPassedMetric);
+			assertEquals("histogram", TestReporter1.lastPassedName);
+		});
 		registry.shutdown().get();
 	}
 

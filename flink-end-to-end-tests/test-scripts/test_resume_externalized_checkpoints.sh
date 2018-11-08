@@ -66,8 +66,9 @@ TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStr
 
 function buildBaseJobCmd {
   local dop=$1
+  local flink_args="$2"
 
-  echo "$FLINK_DIR/bin/flink run -d -p $dop $TEST_PROGRAM_JAR \
+  echo "$FLINK_DIR/bin/flink run -d ${flink_args} -p $dop $TEST_PROGRAM_JAR \
     --test.semantics exactly-once \
     --environment.parallelism $dop \
     --environment.externalize_checkpoint true \
@@ -125,7 +126,7 @@ fi
 
 echo "Restoring job with externalized checkpoint at $CHECKPOINT_PATH ..."
 
-BASE_JOB_CMD=`buildBaseJobCmd $NEW_DOP`
+BASE_JOB_CMD=`buildBaseJobCmd $NEW_DOP "-s file://${CHECKPOINT_PATH} --allowNonRestoredState"`
 
 DATASTREAM_JOB=$($BASE_JOB_CMD | grep "Job has been submitted with JobID" | sed 's/.* //g')
 

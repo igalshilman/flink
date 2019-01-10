@@ -41,7 +41,6 @@ final class OptionalMap<K, V> {
 	// Factory
 	// --------------------------------------------------------------------------------------------------------
 
-
 	/**
 	 * Creates an {@code OptionalMap} from the provided map.
 	 *

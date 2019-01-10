@@ -81,7 +81,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 
 		TypeSerializerSchemaCompatibility<ElementT> result = snapshot.resolveSchemaCompatibility(testSpecification.createSerializer());
 
-		assertTrue(result.isCompatibleAsIs());
+		assertTrue(result.isCompatibleAsIs() || result.isCompatibleWithReconfiguredSerializer());
 	}
 
 	@Test

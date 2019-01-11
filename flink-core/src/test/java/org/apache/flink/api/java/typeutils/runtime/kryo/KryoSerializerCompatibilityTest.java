@@ -70,7 +70,7 @@ public class KryoSerializerCompatibilityTest {
 		@SuppressWarnings("unchecked")
 		TypeSerializerSchemaCompatibility<TestClass> compatResult =
 			kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializerForA);
-		assertTrue(compatResult.isCompatibleAsIs() || compatResult.isCompatibleWithReconfiguredSerializer());
+		assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
 	}
 
 	@Test

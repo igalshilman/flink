@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.function.Function;
@@ -73,7 +74,6 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 		this.snapshotData = createFrom(in, userCodeClassLoader);
 	}
 
-	// TODO: document that unwrap might throw an IllegalStateException
 	@Override
 	public TypeSerializer<T> restoreSerializer() {
 		return new KryoSerializer<>(
@@ -96,7 +96,8 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 	}
 
 	private TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(KryoSerializer<T> newSerializer) {
-		final MergeResult<Class<?>, SerializableSerializer<?>> reconfiguredDefaultKryoSerializers = merge(
+		// merge the default serializers
+		final MergeResult<Class<?>, SerializableSerializer<?>> reconfiguredDefaultKryoSerializers = MergeResult.compute(
 			snapshotData.getDefaultKryoSerializers(),
 			optionalMapOf(newSerializer.getDefaultKryoSerializers(), Class::getName));
 
@@ -105,7 +106,8 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
-		final MergeResult<Class<?>, Class<? extends Serializer<?>>> reconfiguredDefaultKryoSerializerClasses = merge(
+		// merge default serializer classes
+		final MergeResult<Class<?>, Class<? extends Serializer<?>>> reconfiguredDefaultKryoSerializerClasses = MergeResult.compute(
 			snapshotData.getDefaultKryoSerializerClasses(),
 			optionalMapOf(newSerializer.getDefaultKryoSerializerClasses(), Class::getName));
 
@@ -114,7 +116,8 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
-		final MergeResult<String, KryoRegistration> reconfiguredRegistrations = merge(
+		// merge registration
+		final MergeResult<String, KryoRegistration> reconfiguredRegistrations = MergeResult.compute(
 			snapshotData.getKryoRegistrations(),
 			optionalMapOf(newSerializer.getKryoRegistrations(), Function.identity()));
 
@@ -123,6 +126,26 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
+		// there are no missing keys, now we have to decide rather we are compatibly as-is or we require reconfiguration.
+		return resolveSchemaCompatibility(
+			reconfiguredDefaultKryoSerializers,
+			reconfiguredDefaultKryoSerializerClasses,
+			reconfiguredRegistrations);
+	}
+
+	private TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+		MergeResult<Class<?>, SerializableSerializer<?>> reconfiguredDefaultKryoSerializers,
+		MergeResult<Class<?>, Class<? extends Serializer<?>>> reconfiguredDefaultKryoSerializerClasses,
+		MergeResult<String, KryoRegistration> reconfiguredRegistrations) {
+
+		if (reconfiguredDefaultKryoSerializers.isOrderedSubset() &&
+			reconfiguredDefaultKryoSerializerClasses.isOrderedSubset() &&
+			reconfiguredRegistrations.isOrderedSubset()) {
+
+			return TypeSerializerSchemaCompatibility.compatibleAsIs();
+		}
+
+		// reconfigure a new KryoSerializer
 		KryoSerializer<T> reconfiguredSerializer = new KryoSerializer<>(
 			snapshotData.getTypeClass(),
 			reconfiguredDefaultKryoSerializers.getMerged(),
@@ -132,14 +155,43 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 		return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(reconfiguredSerializer);
 	}
 
-
 	private static final class MergeResult<K, V> {
+
+		/**
+		 * Tries to merges the keys and the values of @right into @left.
+		 */
+		static <K, V> MergeResult<K, V> compute(OptionalMap<K, V> left, OptionalMap<K, V> right) {
+			OptionalMap<K, V> merged = new OptionalMap<>(left);
+			merged.putAll(right);
+
+			return new MergeResult<>(merged, isLeftPrefixOfRight(left, right));
+		}
+
+		private static <K, V> boolean isLeftPrefixOfRight(OptionalMap<K, V> left, OptionalMap<K, V> right) {
+			Iterator<String> rightKeys = right.keyNames().iterator();
+
+			for (String leftKey : left.keyNames()) {
+				if (!rightKeys.hasNext()) {
+					return false;
+				}
+				String rightKey = rightKeys.next();
+				if (!leftKey.equals(rightKey)) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		// ----------------------------------------------------------------------------------------------------
+
 		private final OptionalMap<K, V> merged;
 		private final Set<String> missingKeys;
+		private final boolean isOrderedSubset;
 
-		MergeResult(OptionalMap<K, V> merged) {
+		MergeResult(OptionalMap<K, V> merged, boolean isOrderedSubset) {
 			this.merged = merged;
 			this.missingKeys = merged.absentKeysOrValues();
+			this.isOrderedSubset = isOrderedSubset;
 		}
 
 		boolean hasMissingKeys() {
@@ -155,15 +207,13 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 		LinkedHashMap<K, V> getMerged() {
 			return merged.unwrapOptionals();
 		}
-	}
 
-	/**
-	 * Tries to merges the keys and the values of @right into @left.
-	 */
-	private static <K, V> MergeResult<K, V> merge(OptionalMap<K, V> left, OptionalMap<K, V> right) {
-		OptionalMap<K, V> merged = new OptionalMap<>(left);
-		merged.putAll(right);
-		return new MergeResult<>(merged);
+		/**
+		 * returns {@code true} if left
+		 */
+		boolean isOrderedSubset() {
+			return isOrderedSubset;
+		}
 	}
 
 }

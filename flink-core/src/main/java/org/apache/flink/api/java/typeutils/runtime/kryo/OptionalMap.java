@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -146,6 +147,17 @@ final class OptionalMap<K, V> {
 		return entry.getKey().isKeyAbsent() || !entry.getValue().isPresent();
 	}
 
+	Set<String> keyNames() {
+		LinkedHashSet<String> names = new LinkedHashSet<>(underlyingMap.size());
+
+		for (Map.Entry<NamedKey<K>, Optional<V>> entry : underlyingMap.entrySet()) {
+			NamedKey<K> namedKey = entry.getKey();
+			names.add(namedKey.getKeyName());
+		}
+
+		return names;
+	}
+
 	/**
 	 * Note: that the equality is defined solely by the key-name (while ignoring the key-value)
 	 */
@@ -161,6 +173,7 @@ final class OptionalMap<K, V> {
 			this.key = key;
 		}
 
+		@Nonnull
 		String getKeyName() {
 			return name;
 		}

@@ -32,12 +32,12 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
-import org.apache.avro.reflect.Nullable;
 import org.apache.avro.specific.SpecificRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -62,11 +62,13 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 2L;
 
-	/** Logger instance.
+	/**
+	 * Logger instance.
 	 */
 	private static final Logger LOG = LoggerFactory.getLogger(AvroSerializer.class);
 
-	/** Flag whether to check for concurrent thread access.
+	/**
+	 * Flag whether to check for concurrent thread access.
 	 * Because this flag is static final, a value of 'false' allows the JIT compiler to eliminate
 	 * the guarded code sections.
 	 */
@@ -75,16 +77,15 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	// -------- configuration fields, serializable -----------
 
-	/** The class of the type that is serialized by this serializer.
+	/**
+	 * The class of the type that is serialized by this serializer.
 	 */
-	private final Class<T> type;
+
+	private Class<T> type;
 	private SerializableAvroSchema schema;
 	private SerializableAvroSchema previousSchema;
 
 	// -------- for backwards comparability with <= 1.6 -----------
-
-	@SuppressWarnings("RedundantStringConstructorCall")
-	private static final String UNDEFINED = new String("");
 
 	/**
 	 * This is here for backwards compatibility with Flink versions prior to 1.7
@@ -93,7 +94,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	 * Java deserialization. For versions >= 1.7 we expect this field to remain UNDEFINED.
 	 * We can drop this field once we drop support for 1.6
 	 */
-	private final String schemaString = UNDEFINED;
+	private transient String schemaString;
+	private transient int version;
 
 	// -------- runtime fields, non-serializable, lazily initialized -----------
 
@@ -104,11 +106,13 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	private transient DatumReader<T> reader;
 	private transient Schema runtimeSchema;
 
-	/** The serializer configuration snapshot, cached for efficiency.
+	/**
+	 * The serializer configuration snapshot, cached for efficiency.
 	 */
 	private transient TypeSerializerSnapshot<T> configSnapshot;
 
-	/** The currently accessing thread, set and checked on debug level only.
+	/**
+	 * The currently accessing thread, set and checked on debug level only.
 	 */
 	private transient volatile Thread currentThread;
 
@@ -141,7 +145,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	 * Creates a new AvroSerializer for the type indicated by the given class.
 	 */
 	@Internal
-	AvroSerializer(Class<T> type, @Nullable SerializableAvroSchema newSchema, @Nullable SerializableAvroSchema previousSchema) {
+	AvroSerializer(Class<T> type, SerializableAvroSchema newSchema, SerializableAvroSchema previousSchema) {
 		this.type = checkNotNull(type);
 		this.schema = newSchema;
 		this.previousSchema = previousSchema;
@@ -352,7 +356,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("StringEquality")
 	private AvroFactory<T> getAvroFactory() {
-		if (schemaString == UNDEFINED) {
+		if (version >= 17) {
 			return AvroFactory.create(type, schema.getAvroSchema(), previousSchema.getAvroSchema());
 		}
 		// legacy path where this serializer was Java-deserialized, from an older version.
@@ -405,5 +409,55 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		public AvroSchemaSerializerConfigSnapshot() {
 		}
 
+	}
+
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		//
+		// From: https://docs.oracle.com/javase/8/docs/platform/serialization/spec/class.html#a5421
+		// -------------------------------------------------------------------------------------------------------------
+		// 	The descriptors for primitive typed fields are written first
+		// 	sorted by field name followed by descriptors for the object typed fields sorted by field name.
+		// 	The names are sorted using String.compareTo.
+		// -------------------------------------------------------------------------------------------------------------
+		//
+		// old 	(< 1.7) 	field order:   	[schemaString, type]
+		// new 	(>= 1.7) 	field order:	[previousSchema, schema, type]
+
+		final Object f1 = in.readObject();
+		final Object f2 = in.readObject();
+
+		if (f1 == null) {
+			Class<T> type = (Class<T>) f2;
+			readOldLayout(null, type);
+		}
+		else if (f1 instanceof String) {
+			Class<T> type = (Class<T>) f2;
+			readOldLayout((String) f1, type);
+		}
+		else {
+			Object f3 = in.readObject();
+			Class<T> type = (Class<T>) f3;
+			SerializableAvroSchema previousSchema = (SerializableAvroSchema) f1;
+			SerializableAvroSchema schema = (SerializableAvroSchema) f2;
+
+			readCurrentLayout(previousSchema, schema, type);
+		}
+	}
+
+	private void readCurrentLayout(SerializableAvroSchema previousSchema, SerializableAvroSchema schema, Class<T> type) {
+		this.previousSchema = previousSchema;
+		this.schema = schema;
+		this.schemaString = null;
+		this.type = type;
+		this.version = 18;
+	}
+
+	private void readOldLayout(String schemaString, Class<T> type) {
+		this.previousSchema = new SerializableAvroSchema();
+		this.schema = new SerializableAvroSchema();
+		this.schemaString = schemaString;
+		this.type = type;
+		this.version = 16;
 	}
 }

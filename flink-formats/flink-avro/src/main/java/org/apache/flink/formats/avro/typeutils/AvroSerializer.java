@@ -78,8 +78,22 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	/** The class of the type that is serialized by this serializer.
 	 */
 	private final Class<T> type;
-	private final SerializableAvroSchema schema;
-	private final SerializableAvroSchema previousSchema;
+	private SerializableAvroSchema schema;
+	private SerializableAvroSchema previousSchema;
+
+	// -------- for backwards comparability with <= 1.6 -----------
+
+	@SuppressWarnings("RedundantStringConstructorCall")
+	private static final String UNDEFINED = new String("");
+
+	/**
+	 * This is here for backwards compatibility with Flink versions prior to 1.7
+	 * AvroSerializer used to contain this field and for some cases it used to be {@code null}, so
+	 * we initialize it with the sentinel value UNDEFINED, and later check if it was overridden by
+	 * Java deserialization. For versions >= 1.7 we expect this field to remain UNDEFINED.
+	 * We can drop this field once we drop support for 1.6
+	 */
+	private final String schemaString = UNDEFINED;
 
 	// -------- runtime fields, non-serializable, lazily initialized -----------
 
@@ -327,13 +341,24 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	}
 
 	private void initializeAvro() {
-		AvroFactory<T> factory = AvroFactory.create(type, schema.getAvroSchema(), previousSchema.getAvroSchema());
+		final AvroFactory<T> factory = getAvroFactory();
 		this.runtimeSchema = factory.getSchema();
 		this.writer = factory.getWriter();
 		this.reader = factory.getReader();
 		this.encoder = factory.getEncoder();
 		this.decoder = factory.getDecoder();
 		this.avroData = factory.getAvroData();
+	}
+
+	@SuppressWarnings("StringEquality")
+	private AvroFactory<T> getAvroFactory() {
+		if (schemaString == UNDEFINED) {
+			return AvroFactory.create(type, schema.getAvroSchema(), previousSchema.getAvroSchema());
+		}
+		// legacy path where this serializer was Java-deserialized, from an older version.
+		// Pre 1.7 versions, had a type and a schemaString fields, which we would use here
+		// to construct an Avro factory.
+		return AvroFactory.createFromTypeAndSchemaString(type, schemaString);
 	}
 
 	// --------------------------------------------------------------------------------------------

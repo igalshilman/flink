@@ -149,6 +149,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		this.type = checkNotNull(type);
 		this.schema = newSchema;
 		this.previousSchema = previousSchema;
+		this.version = 18;
 	}
 
 	/**
@@ -422,7 +423,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		// -------------------------------------------------------------------------------------------------------------
 		//
 		// old 	(< 1.7) 	field order:   	[schemaString, type]
-		// new 	(>= 1.7) 	field order:	[schema, previousSchema, type]
+		// new 	(>= 1.7) 	field order:	[previousSchema, schema, type]
 
 		final Object f1 = in.readObject();
 		final Object f2 = in.readObject();
@@ -438,8 +439,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		else {
 			Object f3 = in.readObject();
 			Class<T> type = (Class<T>) f3;
-			SerializableAvroSchema schema = (SerializableAvroSchema) f1;
-			SerializableAvroSchema previousSchema = (SerializableAvroSchema) f2;
+			SerializableAvroSchema previousSchema = (SerializableAvroSchema) f1;
+			SerializableAvroSchema schema = (SerializableAvroSchema) f2;
 
 			readCurrentLayout(previousSchema, schema, type);
 		}

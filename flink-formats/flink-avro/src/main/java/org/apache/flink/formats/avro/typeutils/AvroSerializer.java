@@ -65,7 +65,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 2L;
 
-	/** Logger instance. */
+	/** Logger instance.
+	 */
 	private static final Logger LOG = LoggerFactory.getLogger(AvroSerializer.class);
 
 	/** Flag whether to check for concurrent thread access.
@@ -129,8 +130,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	@Internal
 	AvroSerializer(Class<T> type, SerializableAvroSchema newSchema, SerializableAvroSchema previousSchema) {
 		this.type = checkNotNull(type);
-		this.schema = newSchema;
-		this.previousSchema = previousSchema;
+		this.schema = checkNotNull(newSchema);
+		this.previousSchema = checkNotNull(previousSchema);
 	}
 
 	/**
@@ -144,6 +145,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	// ------------------------------------------------------------------------
 
+	@Nonnull
 	public Class<T> getType() {
 		return type;
 	}

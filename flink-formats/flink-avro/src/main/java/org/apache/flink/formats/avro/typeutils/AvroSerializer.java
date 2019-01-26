@@ -39,6 +39,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -62,9 +65,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 2L;
 
-	/**
-	 * Logger instance.
-	 */
+	/** Logger instance. */
 	private static final Logger LOG = LoggerFactory.getLogger(AvroSerializer.class);
 
 	/**
@@ -77,25 +78,9 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	// -------- configuration fields, serializable -----------
 
-	/**
-	 * The class of the type that is serialized by this serializer.
-	 */
-
-	private Class<T> type;
-	private SerializableAvroSchema schema;
-	private SerializableAvroSchema previousSchema;
-
-	// -------- for backwards comparability with <= 1.6 -----------
-
-	/**
-	 * This is here for backwards compatibility with Flink versions prior to 1.7
-	 * AvroSerializer used to contain this field and for some cases it used to be {@code null}, so
-	 * we initialize it with the sentinel value UNDEFINED, and later check if it was overridden by
-	 * Java deserialization. For versions >= 1.7 we expect this field to remain UNDEFINED.
-	 * We can drop this field once we drop support for 1.6
-	 */
-	private transient String schemaString;
-	private transient int version;
+	@Nonnull private Class<T> type;
+	@Nonnull private SerializableAvroSchema schema;
+	@Nonnull private SerializableAvroSchema previousSchema;
 
 	// -------- runtime fields, non-serializable, lazily initialized -----------
 
@@ -149,7 +134,6 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		this.type = checkNotNull(type);
 		this.schema = newSchema;
 		this.previousSchema = previousSchema;
-		this.version = 18;
 	}
 
 	/**
@@ -346,24 +330,13 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	}
 
 	private void initializeAvro() {
-		final AvroFactory<T> factory = getAvroFactory();
+		AvroFactory<T> factory = AvroFactory.create(type, schema.getAvroSchema(), previousSchema.getAvroSchema());
 		this.runtimeSchema = factory.getSchema();
 		this.writer = factory.getWriter();
 		this.reader = factory.getReader();
 		this.encoder = factory.getEncoder();
 		this.decoder = factory.getDecoder();
 		this.avroData = factory.getAvroData();
-	}
-
-	@SuppressWarnings("StringEquality")
-	private AvroFactory<T> getAvroFactory() {
-		if (version >= 17) {
-			return AvroFactory.create(type, schema.getAvroSchema(), previousSchema.getAvroSchema());
-		}
-		// legacy path where this serializer was Java-deserialized, from an older version.
-		// Pre 1.7 versions, had a type and a schemaString fields, which we would use here
-		// to construct an Avro factory.
-		return AvroFactory.createFromTypeAndSchemaString(type, schemaString);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -412,53 +385,76 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	}
 
-	@SuppressWarnings("unchecked")
+	// -------- backwards compatibility with 1.6 -----------
+
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		//
-		// From: https://docs.oracle.com/javase/8/docs/platform/serialization/spec/class.html#a5421
-		// -------------------------------------------------------------------------------------------------------------
-		// 	The descriptors for primitive typed fields are written first
-		// 	sorted by field name followed by descriptors for the object typed fields sorted by field name.
-		// 	The names are sorted using String.compareTo.
-		// -------------------------------------------------------------------------------------------------------------
-		//
-		// old 	(< 1.7) 	field order:   	[schemaString, type]
-		// new 	(>= 1.7) 	field order:	[previousSchema, schema, type]
+		/*
+		During the release of Flink 1.7, the value of serialVersionUID was uptick to 2L (was 1L before)
+		And although the AvroSerializer (along with it's snapshot class) were migrated to the new serialization
+		abstraction (hence free from Java serialization), there were composite serializers that were not migrated
+		and were serialized with Java serialization. In case that one of the nested serializers were Avro we would
+		bump into deserialization exception due to a wrong serialVersionUID. Unfortunately it is not possible to revert
+		the serialVersionUID back to 1L, because users might have snapshots with 2L present already.
+		To overcome this we first need to make sure that the AvroSerializer is being Java deserialized with
+		FailureTolerantObjectInputStream, and then we determine the serialized layout by looking at the fields.
 
-		final Object f1 = in.readObject();
-		final Object f2 = in.readObject();
+		From: https://docs.oracle.com/javase/8/docs/platform/serialization/spec/class.html#a5421
+		-------------------------------------------------------------------------------------------------------------
+		The descriptors for primitive typed fields are written first
+		sorted by field name followed by descriptors for the object typed fields sorted by field name.
+		The names are sorted using String.compareTo.
+		-------------------------------------------------------------------------------------------------------------
 
-		if (f1 == null) {
-			Class<T> type = (Class<T>) f2;
-			readOldLayout(null, type);
+									[f1,				f2,			f3]
+		pre	1.7 	field order:   	[schemaString, 		type]
+		post 1.7 	field order:	[previousSchema,	schema,		type]
+
+		We would use the first field to distinguish between the two different layouts.
+		To complicate things even further in pre 1.7, the field @schemaString could be
+		null or a string, but, in post 1.7, the field @previousSchema was never set to null, therefore
+		we can use the first field to determine the version.
+
+		this logic should stay here as long as we support Flink 1.6 (along with Java serialized
+		TypeSerializers)
+		*/
+		final Object firstField = in.readObject();
+
+		if (firstField == null) {
+			// first field can only be NULL in the old layout.
+			readOldLayout(null, in);
 		}
-		else if (f1 instanceof String) {
-			Class<T> type = (Class<T>) f2;
-			readOldLayout((String) f1, type);
+		else if (firstField instanceof String) {
+			// first field is a String only in the old layout
+			readOldLayout((String)firstField, in);
+		}
+		else if (firstField instanceof SerializableAvroSchema) {
+			readCurrentLayout((SerializableAvroSchema) firstField, in);
 		}
 		else {
-			Object f3 = in.readObject();
-			Class<T> type = (Class<T>) f3;
-			SerializableAvroSchema previousSchema = (SerializableAvroSchema) f1;
-			SerializableAvroSchema schema = (SerializableAvroSchema) f2;
-
-			readCurrentLayout(previousSchema, schema, type);
+			throw new IllegalStateException("Failed to Java-Deserialize an AvroSerializer instance. " +
+				"Was expecting a first field to be either a String or SerializableAvroSchema, but got: " +
+				"" + firstField.getClass());
 		}
 	}
 
-	private void readCurrentLayout(SerializableAvroSchema previousSchema, SerializableAvroSchema schema, Class<T> type) {
-		this.previousSchema = previousSchema;
-		this.schema = schema;
-		this.schemaString = null;
+	@SuppressWarnings("unchecked")
+	private void readOldLayout(@Nullable String schemaString, ObjectInputStream in)
+			throws IOException, ClassNotFoundException {
+
+		Schema schema = AvroFactory.parseSchemaString(schemaString);
+		Class<T> type = (Class<T>) in.readObject();
+
+		this.previousSchema = new SerializableAvroSchema();
+		this.schema = new SerializableAvroSchema(schema);
 		this.type = type;
-		this.version = 18;
 	}
 
-	private void readOldLayout(String schemaString, Class<T> type) {
-		this.previousSchema = new SerializableAvroSchema();
-		this.schema = new SerializableAvroSchema();
-		this.schemaString = schemaString;
-		this.type = type;
-		this.version = 16;
+	@SuppressWarnings("unchecked")
+	private void readCurrentLayout(SerializableAvroSchema previousSchema, ObjectInputStream in)
+			throws IOException, ClassNotFoundException {
+
+		this.previousSchema = previousSchema;
+		this.schema = (SerializableAvroSchema) in.readObject();
+		this.type =  (Class<T>) in.readObject();
 	}
 }

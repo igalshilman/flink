@@ -36,11 +36,11 @@ import org.apache.avro.specific.SpecificRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -78,7 +78,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	// -------- configuration fields, serializable -----------
 
-	@Nonnull private Class<T> type;
+	@Nonnull
+	private Class<T> type;
 	@Nonnull private SerializableAvroSchema schema;
 	@Nonnull private SerializableAvroSchema previousSchema;
 
@@ -424,7 +425,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		}
 		else if (firstField instanceof String) {
 			// first field is a String only in the old layout
-			readOldLayout((String)firstField, in);
+			readOldLayout((String) firstField, in);
 		}
 		else if (firstField instanceof SerializableAvroSchema) {
 			readCurrentLayout((SerializableAvroSchema) firstField, in);

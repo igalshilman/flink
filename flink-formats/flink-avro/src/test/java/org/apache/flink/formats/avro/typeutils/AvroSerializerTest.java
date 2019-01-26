@@ -66,7 +66,6 @@ public class AvroSerializerTest extends SerializerTestBase<User> {
 		return users;
 	}
 
-
 	@Test
 	public void avro16specifc() throws IOException {
 		String flink16 = "AAAAAQAAAUis7QAFc3IANm9yZy5hcGFjaGUuZmxpbmsuZm9ybWF0cy5hdnJvLnR5cGV1dGlscy5BdnJv\n" +
@@ -106,7 +105,6 @@ public class AvroSerializerTest extends SerializerTestBase<User> {
 		TypeSerializerSnapshot<?> x = avro.snapshotConfiguration();
 		x.restoreSerializer();
 	}
-
 
 	@Test
 	public void avro17() throws IOException {
@@ -149,7 +147,7 @@ public class AvroSerializerTest extends SerializerTestBase<User> {
 	}
 
 	@Test
-	public void jllk() throws IOException {
+	public void streamSerializerWithNestedAvro() throws IOException {
 		String flink17init = "AAAAAQAAAq2s7QAFc3IAR29yZy5hcGFjaGUuZmxpbmsuc3RyZWFtaW5nLnJ1bnRpbWUuc3RyZWFtcmVj\n" +
 			"b3JkLlN0cmVhbUVsZW1lbnRTZXJpYWxpemVyAAAAAAAAAAECAAFMAA50eXBlU2VyaWFsaXplcnQANkxv\n" +
 			"cmcvYXBhY2hlL2ZsaW5rL2FwaS9jb21tb24vdHlwZXV0aWxzL1R5cGVTZXJpYWxpemVyO3hyADRvcmcu\n" +
@@ -168,5 +166,8 @@ public class AvroSerializerTest extends SerializerTestBase<User> {
 
 		DataInputView in = new DataInputDeserializer(bytes);
 		TypeSerializer<?> ser = TypeSerializerSerializationUtil.tryReadSerializer(in, Thread.currentThread().getContextClassLoader());
+		ser.getLength();
+		TypeSerializerSnapshot<?> x = ser.snapshotConfiguration();
+		x.getCurrentVersion();
 	}
 }

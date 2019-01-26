@@ -68,8 +68,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	/** Logger instance. */
 	private static final Logger LOG = LoggerFactory.getLogger(AvroSerializer.class);
 
-	/**
-	 * Flag whether to check for concurrent thread access.
+	/** Flag whether to check for concurrent thread access.
 	 * Because this flag is static final, a value of 'false' allows the JIT compiler to eliminate
 	 * the guarded code sections.
 	 */
@@ -91,13 +90,11 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	private transient DatumReader<T> reader;
 	private transient Schema runtimeSchema;
 
-	/**
-	 * The serializer configuration snapshot, cached for efficiency.
+	/** The serializer configuration snapshot, cached for efficiency.
 	 */
 	private transient TypeSerializerSnapshot<T> configSnapshot;
 
-	/**
-	 * The currently accessing thread, set and checked on debug level only.
+	/** The currently accessing thread, set and checked on debug level only.
 	 */
 	private transient volatile Thread currentThread;
 

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -129,7 +130,7 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public TupleSerializerConfigSnapshot<T> snapshotConfiguration() {
+	public TypeSerializerSnapshot<T> snapshotConfiguration() {
 		return new TupleSerializerConfigSnapshot<>(tupleClass, fieldSerializers);
 	}
 

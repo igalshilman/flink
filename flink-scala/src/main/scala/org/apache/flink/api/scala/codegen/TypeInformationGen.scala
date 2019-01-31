@@ -23,9 +23,7 @@ import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils._
-import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils._
-import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
 import org.apache.flink.api.scala.typeutils._
 import org.apache.flink.types.Value
 
@@ -145,9 +143,14 @@ private[flink] trait TypeInformationGen[C <: Context] {
             fieldSerializers(i) = types(i).createSerializer(executionConfig)
           }
 
-          new CaseClassSerializer[T](getTypeClass(), fieldSerializers) {
+
+          val unused = new CaseClassSerializer[T](getTypeClass(), fieldSerializers) {
             override def createInstance(fields: Array[AnyRef]): T = {
               instance.splice
+            }
+
+            override def snapshotConfiguration(): TypeSerializerSnapshot[T] = {
+              new CaseClassSerializerSnapshot[T](getTupleClass, fieldSerializers)
             }
 
             override def createSerializerInstance(
@@ -159,6 +162,8 @@ private[flink] trait TypeInformationGen[C <: Context] {
                 .asInstanceOf[CaseClassSerializer[T]]
             }
           }
+
+          new SpecificCaseClassSerializer[T](getTypeClass, fieldSerializers)
         }
       }
     }

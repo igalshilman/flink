@@ -146,7 +146,10 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 	@Override
 	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
 			TypeSerializer<T> newSerializer) {
-
+		if (newSerializer instanceof SelfMigrating<?>) {
+				@SuppressWarnings("unchecked") SelfMigrating<T> selfMigrating = (SelfMigrating<T>) newSerializer;
+				return selfMigrating.resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(this);
+		}
 		// in prior versions, the compatibility check was in the serializer itself, so we
 		// delegate this call to the serializer.
 		final CompatibilityResult<T> compatibility = newSerializer.ensureCompatibility(this);
@@ -154,5 +157,14 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 		return compatibility.isRequiresMigration() ?
 				TypeSerializerSchemaCompatibility.incompatible() :
 				TypeSerializerSchemaCompatibility.compatibleAsIs();
+	}
+
+	/**
+	 * TODO: complete.
+	 */
+	@Internal
+	public interface SelfMigrating<E> {
+		TypeSerializerSchemaCompatibility<E> resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
+			TypeSerializerConfigSnapshot<E> deprecatedConfigSnapshot);
 	}
 }

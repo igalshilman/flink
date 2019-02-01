@@ -31,7 +31,7 @@ import java.util.Objects;
 /**
  * {@link TypeSerializerSnapshot} for {@link SpecificCaseClassSerializer}.
  */
-public final class CaseClassSerializerSnapshot<T extends scala.Product>
+public final class SpecificCaseClassSerializerSnapshot<T extends scala.Product>
 	extends CompositeTypeSerializerSnapshot<T, SpecificCaseClassSerializer<T>> {
 
 	private static final int VERSION = 2;
@@ -42,21 +42,26 @@ public final class CaseClassSerializerSnapshot<T extends scala.Product>
 	 * Used via reflection.
 	 */
 	@SuppressWarnings("unused")
-	public CaseClassSerializerSnapshot() {
+	public SpecificCaseClassSerializerSnapshot() {
 		super(correspondingSerializerClass());
 	}
 
 	/**
 	 * Used for delegating schema compatibility checks from serializers that were previously using
 	 * {@code TupleSerializerConfigSnapshot}.
+	 * Type is the {@code outerSnapshot} information, that is required to preform
+	 * {@link #internalResolveSchemaCompatibility(TypeSerializer, TypeSerializerSnapshot[])}.
 	 */
 	@Internal
-	public CaseClassSerializerSnapshot(Class<T> type) {
+	SpecificCaseClassSerializerSnapshot(Class<T> type) {
 		super(correspondingSerializerClass());
 		this.type = type;
 	}
 
-	public CaseClassSerializerSnapshot(SpecificCaseClassSerializer<T> serializerInstance) {
+	/**
+	 * Used for the snapshot path.
+	 */
+	public SpecificCaseClassSerializerSnapshot(SpecificCaseClassSerializer<T> serializerInstance) {
 		super(serializerInstance);
 		this.type = serializerInstance.getTupleClass();
 	}
@@ -96,7 +101,6 @@ public final class CaseClassSerializerSnapshot<T extends scala.Product>
 
 	@Override
 	protected boolean isOuterSnapshotCompatible(SpecificCaseClassSerializer<T> newSerializer) {
-		// TODO: think this through?
 		return Objects.equals(type, newSerializer.getTupleClass());
 	}
 

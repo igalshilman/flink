@@ -142,24 +142,16 @@ private[flink] trait TypeInformationGen[C <: Context] {
           for (i <- 0 until getArity) {
             fieldSerializers(i) = types(i).createSerializer(executionConfig)
           }
+          // -------------------------------------------------------------------------------------------------------------
+          // NOTE:
+          // the following anonymous class is needed here, and should not be removed (although appears to be unused)
+          // since it is required for backwards compatibility with Flink versions pre 1.8, that were using
+          // Java deserialization.
+          // -------------------------------------------------------------------------------------------------------------
+          val unused = new SpecificCaseClassSerializer[T](getTypeClass(), fieldSerializers) {
 
-
-          val unused = new CaseClassSerializer[T](getTypeClass(), fieldSerializers) {
             override def createInstance(fields: Array[AnyRef]): T = {
               instance.splice
-            }
-
-            override def snapshotConfiguration(): TypeSerializerSnapshot[T] = {
-              new CaseClassSerializerSnapshot[T](getTupleClass, fieldSerializers)
-            }
-
-            override def createSerializerInstance(
-                tupleClass: Class[T],
-                fieldSerializers: Array[TypeSerializer[_]]) = {
-              this.getClass
-                .getConstructors()(0)
-                .newInstance(tupleClass, fieldSerializers)
-                .asInstanceOf[CaseClassSerializer[T]]
             }
           }
 

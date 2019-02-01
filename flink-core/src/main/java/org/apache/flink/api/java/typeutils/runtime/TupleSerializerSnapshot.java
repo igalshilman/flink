@@ -38,11 +38,12 @@ public final class TupleSerializerSnapshot<T extends Tuple>
 
 	private Class<T> tupleClass;
 
+	@SuppressWarnings("unused")
 	public TupleSerializerSnapshot() {
 		super(correspondingSerializerClass());
 	}
 
-	public TupleSerializerSnapshot(TupleSerializer<T> serializerInstance) {
+	TupleSerializerSnapshot(TupleSerializer<T> serializerInstance) {
 		super(serializerInstance);
 	}
 

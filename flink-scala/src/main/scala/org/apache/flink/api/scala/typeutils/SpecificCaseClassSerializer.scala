@@ -18,19 +18,61 @@
 
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerSnapshot}
+import java.io.ObjectInputStream
+import java.lang.invoke.{MethodHandle, MethodHandles}
+
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.SelfMigrating
+import org.apache.flink.api.common.typeutils._
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializerConfigSnapshot
+import org.apache.flink.api.scala.typeutils.SpecificCaseClassSerializer.lookupConstructor
+
+import scala.collection.JavaConverters._
+
+
+object SpecificCaseClassSerializer {
+
+  def lookupConstructor(clazz: Class[_]): MethodHandle = {
+    val constructor = clazz.getDeclaredConstructors()(0)
+    MethodHandles.publicLookup()
+      .unreflectConstructor(constructor)
+  }
+}
 
 class SpecificCaseClassSerializer[T <: Product](clazz: Class[T], scalaFieldSerializers: Array[TypeSerializer[_]])
-  extends CaseClassSerializer[T](clazz, scalaFieldSerializers) {
+  extends CaseClassSerializer[T](clazz, scalaFieldSerializers) with SelfMigrating[T] {
 
-  private val constructor = clazz.getDeclaredConstructors()(0)
+  @transient
+  private var constructor = lookupConstructor(clazz)
 
   override def createInstance(fields: Array[AnyRef]): T = {
-    constructor.newInstance(fields).asInstanceOf[T]
+    constructor.invokeExact(fields).asInstanceOf[T]
   }
 
   override def snapshotConfiguration(): TypeSerializerSnapshot[T] = {
-    new CaseClassSerializerSnapshot[T](this)
+    new SpecificCaseClassSerializerSnapshot[T](this)
+  }
+
+  override def resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(deprecated: TypeSerializerConfigSnapshot[T]):
+  TypeSerializerSchemaCompatibility[T] = {
+
+    require(deprecated.isInstanceOf[TupleSerializerConfigSnapshot[_]])
+
+    val configSnapshot = deprecated.asInstanceOf[TupleSerializerConfigSnapshot[T]]
+    val nestedSnapshots = configSnapshot.getNestedSerializersAndConfigs
+      .asScala
+      .map(t => t.f1)
+      .toArray
+
+    val newCompositeSnapshot = new SpecificCaseClassSerializerSnapshot[T](configSnapshot.getTupleClass)
+    delegateCompatibilityCheckToNewSnapshot(this, newCompositeSnapshot, nestedSnapshots: _*)
+  }
+
+  private def readObject(in: ObjectInputStream): Unit = {
+    // this should be removed once we make sure that serializer are no long java serialized.
+    in.defaultReadObject()
+    constructor = lookupConstructor(clazz)
   }
 
 }
+

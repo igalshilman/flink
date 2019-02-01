@@ -114,7 +114,7 @@ class ScalaSerializersMigrationTest {
 
   def assertPreviouslyGeneratedClassExists(name: String): Unit = {
     val klass = Class.forName(name)
-    Assert.assertEquals(klass.getSuperclass, classOf[CaseClassSerializer[_]])
+    Assert.assertEquals(classOf[SpecificCaseClassSerializer[_]], klass.getSuperclass)
   }
 
 }

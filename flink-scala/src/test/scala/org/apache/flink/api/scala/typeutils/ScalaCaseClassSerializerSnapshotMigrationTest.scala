@@ -18,13 +18,9 @@
 
 package org.apache.flink.api.scala.typeutils
 
-;
-
 import java.util
-import java.util.function.Supplier
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase
 import org.apache.flink.api.scala.types.CustomCaseClass
@@ -32,47 +28,41 @@ import org.apache.flink.testutils.migration.MigrationVersion
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase.{TestSpecification, TestSpecifications}
-import org.apache.flink.api.scala.createTypeInformation;
+import org.apache.flink.api.scala.createTypeInformation
 
 /**
-  * Migration tests.
+  * Migration tests for the [[CaseClassSerializer]].
   */
 @RunWith(classOf[Parameterized])
 class ScalaCaseClassSerializerSnapshotMigrationTest(testSpecification: TestSpecification[CustomCaseClass])
 	extends TypeSerializerSnapshotMigrationTestBase[CustomCaseClass](testSpecification) {
-
-	def getCustomCaseClassTypeInformation(): TypeInformation[CustomCaseClass] = {
-		createTypeInformation[CustomCaseClass]
-	}
 }
 
 object ScalaCaseClassSerializerSnapshotMigrationTest {
 
 	private val SPEC_NAME = "scala-case-class-serializer"
 
-	private val typeInfo = {
+	/** This should create a type information with the following java class name
+	  * org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerSnapshotMigrationTest$$anon$2
+	  * nesting this definition would cause the generated typeInformation to have a different class name
+	  * and since the type serializer definition in pre 1.8 is nested within this type information definition,
+	  * we would fail to java deserialize the previously present type serializer.
+	  */
+	private val typeInfo = createTypeInformation[CustomCaseClass]
 
-		val spec = TestSpecification.builder(null, null, null, null)
-  		.asInstanceOf[TestSpecification[CustomCaseClass]]
-
-		new ScalaCaseClassSerializerSnapshotMigrationTest(spec)
-			.getCustomCaseClassTypeInformation()
+	private val supplier = new util.function.Supplier[TypeSerializer[CustomCaseClass]] {
+		override def get(): TypeSerializer[CustomCaseClass] = typeInfo.createSerializer(new ExecutionConfig)
 	}
 
 	@Parameterized.Parameters(name = "Test Specification = {0}")
 	def testSpecifications(): util.Collection[TestSpecification[_]] = {
-
-		val x: Supplier[_ <: TypeSerializer[CustomCaseClass]] = new Supplier[TypeSerializer[CustomCaseClass]] {
-			override def get(): TypeSerializer[CustomCaseClass] = typeInfo.createSerializer(new ExecutionConfig)
-		}
-
 		val testSpecifications = new TestSpecifications(MigrationVersion.v1_6, MigrationVersion.v1_7)
 
 		testSpecifications.add(
 			SPEC_NAME,
 			classOf[SpecificCaseClassSerializer[CustomCaseClass]],
-			classOf[CaseClassSerializerSnapshot[CustomCaseClass]],
-			x)
+			classOf[SpecificCaseClassSerializerSnapshot[CustomCaseClass]],
+			supplier)
 
 		testSpecifications.get()
 	}

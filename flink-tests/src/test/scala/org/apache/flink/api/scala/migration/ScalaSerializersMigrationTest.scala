@@ -54,67 +54,103 @@ class ScalaSerializersMigrationTest {
 
     Assert.assertEquals(
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$8",
-      caseClassInfo.getClass.getName)
-    assertPreviouslyGeneratedClassExists("org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$8$$anon$1")
+      caseClassInfo.getClass.getName
+    )
+    assertPreviouslyGeneratedClassExists(
+      "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$8$$anon$1"
+    )
     Assert.assertEquals(
       classOf[SpecificCaseClassSerializer[CustomCaseClass]],
-      caseClassInfo.createSerializer(new ExecutionConfig).getClass)
+      caseClassInfo.createSerializer(new ExecutionConfig).getClass
+    )
 
     Assert.assertEquals(
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$9",
-      caseClassWithNestingInfo.getClass.getName)
-    assertPreviouslyGeneratedClassExists("org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$9$$anon$3")
+      caseClassWithNestingInfo.getClass.getName
+    )
+    assertPreviouslyGeneratedClassExists(
+      "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$9$$anon$3"
+    )
     Assert.assertEquals(
       classOf[SpecificCaseClassSerializer[CustomCaseClass]],
-      caseClassWithNestingInfo.createSerializer(new ExecutionConfig).getClass)
-    assertPreviouslyGeneratedClassExists("org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$9$$anon$10$$anon$2")
+      caseClassWithNestingInfo.createSerializer(new ExecutionConfig).getClass
+    )
+    assertPreviouslyGeneratedClassExists(
+      "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$9$$anon$10$$anon$2"
+    )
     Assert.assertEquals(
       classOf[SpecificCaseClassSerializer[CustomCaseClass]],
-      caseClassWithNestingInfo.getTypeAt("nested")
-        .createSerializer(new ExecutionConfig).getClass)
+      caseClassWithNestingInfo
+        .getTypeAt("nested")
+        .createSerializer(new ExecutionConfig)
+        .getClass
+    )
 
     Assert.assertEquals(
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$16",
-      traversableInfo.getClass.getName)
+      traversableInfo.getClass.getName
+    )
     Assert.assertEquals(
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$16$$anon$12",
-      traversableInfo.createSerializer(new ExecutionConfig).getClass.getName)
+      traversableInfo.createSerializer(new ExecutionConfig).getClass.getName
+    )
     Assert.assertEquals(
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$11",
-      traversableInfo.elementTypeInfo.getClass.getName)
-    assertPreviouslyGeneratedClassExists("org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$11$$anon$4")
+      traversableInfo.elementTypeInfo.getClass.getName
+    )
+    assertPreviouslyGeneratedClassExists(
+      "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$11$$anon$4"
+    )
     Assert.assertEquals(
       classOf[SpecificCaseClassSerializer[CustomCaseClass]],
-      traversableInfo.elementTypeInfo.createSerializer(new ExecutionConfig).getClass)
+      traversableInfo.elementTypeInfo
+        .createSerializer(new ExecutionConfig)
+        .getClass
+    )
 
     Assert.assertEquals(
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$13",
-      tryInfo.elemTypeInfo.getClass.getName)
-    assertPreviouslyGeneratedClassExists("org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$13$$anon$5")
+      tryInfo.elemTypeInfo.getClass.getName
+    )
+    assertPreviouslyGeneratedClassExists(
+      "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$13$$anon$5"
+    )
     Assert.assertEquals(
       classOf[SpecificCaseClassSerializer[CustomCaseClass]],
-      tryInfo.elemTypeInfo.createSerializer(new ExecutionConfig).getClass)
+      tryInfo.elemTypeInfo.createSerializer(new ExecutionConfig).getClass
+    )
 
     Assert.assertEquals(
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$14",
-      optionInfo.getElemTypeInfo.getClass.getName)
-    assertPreviouslyGeneratedClassExists("org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$14$$anon$6")
+      optionInfo.getElemTypeInfo.getClass.getName
+    )
+    assertPreviouslyGeneratedClassExists(
+      "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$14$$anon$6"
+    )
     Assert.assertEquals(
       classOf[SpecificCaseClassSerializer[CustomCaseClass]],
-      optionInfo.getElemTypeInfo.createSerializer(new ExecutionConfig).getClass)
+      optionInfo.getElemTypeInfo.createSerializer(new ExecutionConfig).getClass
+    )
 
     Assert.assertEquals(
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$15",
-      eitherInfo.leftTypeInfo.getClass.getName)
-    assertPreviouslyGeneratedClassExists("org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$15$$anon$7")
+      eitherInfo.leftTypeInfo.getClass.getName
+    )
+    assertPreviouslyGeneratedClassExists(
+      "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$15$$anon$7"
+    )
     Assert.assertEquals(
       classOf[SpecificCaseClassSerializer[CustomCaseClass]],
-      eitherInfo.leftTypeInfo.createSerializer(new ExecutionConfig).getClass)
+      eitherInfo.leftTypeInfo.createSerializer(new ExecutionConfig).getClass
+    )
   }
 
   def assertPreviouslyGeneratedClassExists(name: String): Unit = {
     val klass = Class.forName(name)
-    Assert.assertEquals(classOf[SpecificCaseClassSerializer[_]], klass.getSuperclass)
+    Assert.assertEquals(
+      classOf[SpecificCaseClassSerializer[_]],
+      klass.getSuperclass
+    )
   }
 
 }

@@ -16,40 +16,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.typeutils;
+package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
-import java.util.Objects;
 
 /**
- * {@link TypeSerializerSnapshot} for {@link SpecificCaseClassSerializer}.
+ * Snapshot of a tuple serializer's configuration.
  */
-public final class CaseClassSerializerSnapshot<T extends scala.Product>
-	extends CompositeTypeSerializerSnapshot<T, SpecificCaseClassSerializer<T>> {
+@Internal
+public final class TupleSerializerSnapshot<T extends Tuple>
+	extends CompositeTypeSerializerSnapshot<T, TupleSerializer<T>> {
 
 	private static final int VERSION = 2;
 
-	private Class<T> type;
+	private Class<T> tupleClass;
 
-	public CaseClassSerializerSnapshot() {
+	public TupleSerializerSnapshot() {
 		super(correspondingSerializerClass());
 	}
 
-	public CaseClassSerializerSnapshot(SpecificCaseClassSerializer<T> serializerInstance) {
+	public TupleSerializerSnapshot(TupleSerializer<T> serializerInstance) {
 		super(serializerInstance);
-		this.type = serializerInstance.getTupleClass();
 	}
 
-	// for legacy
-	public CaseClassSerializerSnapshot(Class<T> type, TypeSerializer<Object>[] fieldSerializers) {
-		super(new SpecificCaseClassSerializer<>(type, fieldSerializers));
-		this.type = type;
+	// for backwards compatibility
+	TupleSerializerSnapshot(Class<T> tupleClass) {
+		super(correspondingSerializerClass());
+		this.tupleClass = tupleClass;
 	}
 
 	@Override
@@ -58,18 +58,18 @@ public final class CaseClassSerializerSnapshot<T extends scala.Product>
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(SpecificCaseClassSerializer<T> outerSerializer) {
+	protected TypeSerializer<?>[] getNestedSerializers(TupleSerializer<T> outerSerializer) {
 		return outerSerializer.getFieldSerializers();
 	}
 
 	@Override
-	protected SpecificCaseClassSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		return new SpecificCaseClassSerializer<>(type, nestedSerializers);
+	protected TupleSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+		return new TupleSerializer<>(tupleClass, nestedSerializers);
 	}
 
 	@Override
 	protected void writeOuterSnapshot(DataOutputView out) throws IOException {
-		out.writeUTF(type.getName());
+		out.writeUTF(tupleClass.getName());
 	}
 
 	@Override
@@ -78,21 +78,15 @@ public final class CaseClassSerializerSnapshot<T extends scala.Product>
 		try {
 			@SuppressWarnings("unchecked")
 			Class<T> typeClass = (Class<T>) Class.forName(className, false, userCodeClassLoader);
-			this.type = typeClass;
+			this.tupleClass = typeClass;
 		}
 		catch (ClassNotFoundException e) {
-			throw new IllegalStateException("Can not find the case class '" + type + "'", e);
+			throw new IllegalStateException("Can not find the case class '" + tupleClass + "'", e);
 		}
-	}
-
-	@Override
-	protected boolean isOuterSnapshotCompatible(SpecificCaseClassSerializer<T> newSerializer) {
-		// TODO: think this through?
-		return Objects.equals(type, newSerializer.getTupleClass());
 	}
 
 	@SuppressWarnings("unchecked")
-	private static <T extends scala.Product> Class<SpecificCaseClassSerializer<T>> correspondingSerializerClass() {
-		return (Class<SpecificCaseClassSerializer<T>>) (Class<?>) SpecificCaseClassSerializer.class;
+	private static <T extends Tuple> Class<TupleSerializer<T>> correspondingSerializerClass() {
+		return (Class<TupleSerializer<T>>) (Class<?>) TupleSerializer.class;
 	}
 }

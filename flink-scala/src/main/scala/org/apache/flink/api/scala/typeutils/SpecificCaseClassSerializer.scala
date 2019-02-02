@@ -54,7 +54,7 @@ class SpecificCaseClassSerializer[T <: Product](
     with SelfMigrating[T] {
 
   @transient
-  private var constructor = lookupConstructor(clazz, arity)
+  private var constructor: MethodHandle = lookupConstructor(clazz, arity)
 
   override def createInstance(fields: Array[AnyRef]): T = {
     constructor.invoke(fields).asInstanceOf[T]

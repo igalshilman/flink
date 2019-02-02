@@ -123,14 +123,16 @@ class CaseClassFieldAccessorTest extends TestLogger with JUnitSuiteLike {
 
     var x = OuterCaseClassWithInner(1, InnerCaseClass(2, "alma"), true)
 
-    val fib = FieldAccessorFactory.getAccessor[OuterCaseClassWithInner, String](tpeInfo, "i.b", null)
+    val fib = FieldAccessorFactory
+      .getAccessor[OuterCaseClassWithInner, String](tpeInfo, "i.b", null)
     assert(fib.get(x) == "alma")
     assert(x.i.b == "alma")
     x = fib.set(x, "korte")
     assert(fib.get(x) == "korte")
     assert(x.i.b == "korte")
 
-    val fi = FieldAccessorFactory.getAccessor[OuterCaseClassWithInner, InnerCaseClass](tpeInfo, "i", null)
+    val fi = FieldAccessorFactory
+      .getAccessor[OuterCaseClassWithInner, InnerCaseClass](tpeInfo, "i", null)
     assert(fi.get(x) == InnerCaseClass(2, "korte"))
     x = fi.set(x, InnerCaseClass(3, "aaa"))
     assert(x.i == InnerCaseClass(3, "aaa"))

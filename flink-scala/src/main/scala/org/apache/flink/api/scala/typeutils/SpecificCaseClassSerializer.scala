@@ -31,12 +31,19 @@ import scala.collection.JavaConverters._
 
 object SpecificCaseClassSerializer {
 
-  def lookupConstructor(clazz: Class[_]): MethodHandle = {
-    val constructor = clazz.getDeclaredConstructors()(0)
+  def lookupConstructor(clazz: Class[_], arity: Int): MethodHandle = {
+    val constructor = Array(clazz.getDeclaredConstructors(): _*)
+      .find(c => c.getParameterCount == arity)
+      .getOrElse(
+        throw new IllegalStateException(
+          s"unable to find a constructor for the class ${clazz.getName} with arity $arity."
+        )
+      )
+
     MethodHandles
       .publicLookup()
       .unreflectConstructor(constructor)
-      .asSpreader(classOf[Array[AnyRef]], constructor.getParameterCount)
+      .asSpreader(classOf[Array[AnyRef]], arity)
   }
 }
 
@@ -47,7 +54,7 @@ class SpecificCaseClassSerializer[T <: Product](
     with SelfMigrating[T] {
 
   @transient
-  private var constructor = lookupConstructor(clazz)
+  private var constructor = lookupConstructor(clazz, arity)
 
   override def createInstance(fields: Array[AnyRef]): T = {
     constructor.invoke(fields).asInstanceOf[T]
@@ -81,7 +88,7 @@ class SpecificCaseClassSerializer[T <: Product](
   private def readObject(in: ObjectInputStream): Unit = {
     // this should be removed once we make sure that serializer are no long java serialized.
     in.defaultReadObject()
-    constructor = lookupConstructor(clazz)
+    constructor = lookupConstructor(clazz, arity)
   }
 
 }

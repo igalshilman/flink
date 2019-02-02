@@ -45,6 +45,7 @@ public final class TupleSerializerSnapshot<T extends Tuple>
 
 	TupleSerializerSnapshot(TupleSerializer<T> serializerInstance) {
 		super(serializerInstance);
+		this.tupleClass = serializerInstance.getTupleClass();
 	}
 
 	// for backwards compatibility

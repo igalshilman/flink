@@ -28,22 +28,60 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializerConfigSnapshot
 import org.apache.flink.api.scala.typeutils.SpecificCaseClassSerializer.lookupConstructor
 
 import scala.collection.JavaConverters._
+import scala.reflect.runtime.universe
 
 object SpecificCaseClassSerializer {
 
-  def lookupConstructor(clazz: Class[_], arity: Int): MethodHandle = {
-    val constructor = Array(clazz.getDeclaredConstructors(): _*)
-      .find(c => c.getParameterCount == arity)
-      .getOrElse(
-        throw new IllegalStateException(
-          s"unable to find a constructor for the class ${clazz.getName} with arity $arity."
-        )
-      )
+  def lookupConstructor[T](clazz: Class[_]): MethodHandle = {
+    val types = findPrimaryConstructorParameterTypes(clazz, clazz.getClassLoader)
 
-    MethodHandles
-      .publicLookup()
+    val constructor = clazz.getConstructor(types: _*)
+
+    val handle = MethodHandles
+      .lookup()
       .unreflectConstructor(constructor)
-      .asSpreader(classOf[Array[AnyRef]], arity)
+      .asSpreader(classOf[Array[AnyRef]], types.length)
+
+    handle
+  }
+
+  private def findPrimaryConstructorParameterTypes(cls: Class[_], cl: ClassLoader):
+  List[Class[_]] = {
+    val rootMirror = universe.runtimeMirror(cl)
+    val classSymbol = rootMirror.classSymbol(cls)
+
+    require(
+      classSymbol.isStatic,
+      s"""
+           |The class ${cls.getSimpleName} is an instance class, meaning it is not a member of a
+           |toplevel object, or of an object contained in a toplevel object,
+           |therefore it requires an outer instance to be instantiated, but we don't have a
+           |reference to the outer instance. Please consider changing the outer class to an object.
+           |""".stripMargin
+    )
+
+    val primaryConstructorSymbol = findPrimaryConstructorMethodSymbol(classSymbol)
+    val scalaTypes: List[universe.Type] = getArgumentsTypes(primaryConstructorSymbol)
+
+    val javaTypes: List[Class[_]] = scalaTypes.map(tpe => rootMirror.runtimeClass(tpe))
+    javaTypes
+  }
+
+  private def findPrimaryConstructorMethodSymbol(classSymbol: universe.ClassSymbol):
+  universe.MethodSymbol = {
+    classSymbol.toType
+      .decl(universe.termNames.CONSTRUCTOR)
+      .alternatives
+      .head
+      .asMethod
+  }
+
+  private def getArgumentsTypes(primaryConstructorSymbol: universe.MethodSymbol):
+  List[universe.Type] = {
+    primaryConstructorSymbol.typeSignature
+      .paramLists
+      .head
+      .map(symbol => symbol.typeSignature)
   }
 }
 
@@ -54,7 +92,7 @@ class SpecificCaseClassSerializer[T <: Product](
     with SelfMigrating[T] {
 
   @transient
-  private var constructor: MethodHandle = lookupConstructor(clazz, arity)
+  private var constructor = lookupConstructor(clazz)
 
   override def createInstance(fields: Array[AnyRef]): T = {
     constructor.invoke(fields).asInstanceOf[T]
@@ -88,7 +126,7 @@ class SpecificCaseClassSerializer[T <: Product](
   private def readObject(in: ObjectInputStream): Unit = {
     // this should be removed once we make sure that serializer are no long java serialized.
     in.defaultReadObject()
-    constructor = lookupConstructor(clazz, arity)
+    constructor = lookupConstructor(clazz)
   }
 
 }

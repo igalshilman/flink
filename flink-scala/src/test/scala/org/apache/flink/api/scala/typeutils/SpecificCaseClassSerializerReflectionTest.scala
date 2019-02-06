@@ -19,31 +19,39 @@
 package org.apache.flink.api.scala.typeutils
 import java.lang.invoke.MethodHandle
 
-import org.apache.flink.api.scala.typeutils.SpecificCaseClassSerializerReflectionTest.{
-  HigherKind,
-  SimpleCaseClass
-}
+import org.apache.flink.api.scala.typeutils.SpecificCaseClassSerializerReflectionTest.{Generic, HigherKind, SimpleCaseClass}
 import org.apache.flink.util.TestLogger
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
-  * Test [[SpecificCaseClassSerializer]].
+  * Test obtaining the primary constructor of a case class
+  * via reflection.
   */
 class SpecificCaseClassSerializerReflectionTest extends TestLogger {
 
   @Test
-  def findPrimaryConstructor(): Unit = {
+  def usageExample(): Unit = {
     val constructor: MethodHandle = SpecificCaseClassSerializer
       .lookupConstructor(classOf[SimpleCaseClass])
 
-    val actual = constructor.invoke(Array("hi", 19))
+    val actual = constructor.invoke(Array("hi", 1.asInstanceOf[Any]))
 
-    assertEquals(SimpleCaseClass("hi", 19), actual)
+    assertEquals(SimpleCaseClass("hi", 1), actual)
   }
 
   @Test
-  def higherKind(): Unit = {
+  def genericCaseClass(): Unit = {
+    val constructor: MethodHandle = SpecificCaseClassSerializer
+      .lookupConstructor(classOf[Generic[_]])
+
+    val actual = constructor.invoke(Array(1.asInstanceOf[AnyRef]))
+
+    assertEquals(Generic[Int](1), actual)
+  }
+
+  @Test
+  def caseClassWithParameterizedList(): Unit = {
     val constructor: MethodHandle = SpecificCaseClassSerializer
       .lookupConstructor(classOf[HigherKind])
 
@@ -52,15 +60,24 @@ class SpecificCaseClassSerializerReflectionTest extends TestLogger {
     assertEquals(HigherKind(List(1, 2, 3), "hey"), actual)
   }
 
+  @Test
+  def tupleType(): Unit = {
+    val constructor: MethodHandle = SpecificCaseClassSerializer
+      .lookupConstructor(classOf[(String, String, Int)])
+
+    val actual = constructor.invoke(Array("a", "b", 7))
+
+    assertEquals(("a", "b", 7), actual)
+  }
+
   @Test(expected = classOf[IllegalArgumentException])
-  def instanceClass(): Unit = {
+  def unsupportedInstanceClass(): Unit = {
 
     val outerInstance = new OuterClass
 
     SpecificCaseClassSerializer
       .lookupConstructor(classOf[outerInstance.InnerCaseClass])
   }
-
 }
 
 object SpecificCaseClassSerializerReflectionTest {
@@ -72,6 +89,8 @@ object SpecificCaseClassSerializerReflectionTest {
   }
 
   case class HigherKind(name: List[Int], id: String)
+
+  case class Generic[T](item: T)
 
 }
 

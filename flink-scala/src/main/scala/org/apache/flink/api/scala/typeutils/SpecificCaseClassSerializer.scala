@@ -30,61 +30,6 @@ import org.apache.flink.api.scala.typeutils.SpecificCaseClassSerializer.lookupCo
 import scala.collection.JavaConverters._
 import scala.reflect.runtime.universe
 
-object SpecificCaseClassSerializer {
-
-  def lookupConstructor[T](clazz: Class[_]): MethodHandle = {
-    val types = findPrimaryConstructorParameterTypes(clazz, clazz.getClassLoader)
-
-    val constructor = clazz.getConstructor(types: _*)
-
-    val handle = MethodHandles
-      .lookup()
-      .unreflectConstructor(constructor)
-      .asSpreader(classOf[Array[AnyRef]], types.length)
-
-    handle
-  }
-
-  private def findPrimaryConstructorParameterTypes(cls: Class[_], cl: ClassLoader):
-  List[Class[_]] = {
-    val rootMirror = universe.runtimeMirror(cl)
-    val classSymbol = rootMirror.classSymbol(cls)
-
-    require(
-      classSymbol.isStatic,
-      s"""
-           |The class ${cls.getSimpleName} is an instance class, meaning it is not a member of a
-           |toplevel object, or of an object contained in a toplevel object,
-           |therefore it requires an outer instance to be instantiated, but we don't have a
-           |reference to the outer instance. Please consider changing the outer class to an object.
-           |""".stripMargin
-    )
-
-    val primaryConstructorSymbol = findPrimaryConstructorMethodSymbol(classSymbol)
-    val scalaTypes: List[universe.Type] = getArgumentsTypes(primaryConstructorSymbol)
-
-    val javaTypes: List[Class[_]] = scalaTypes.map(tpe => rootMirror.runtimeClass(tpe))
-    javaTypes
-  }
-
-  private def findPrimaryConstructorMethodSymbol(classSymbol: universe.ClassSymbol):
-  universe.MethodSymbol = {
-    classSymbol.toType
-      .decl(universe.termNames.CONSTRUCTOR)
-      .alternatives
-      .head
-      .asMethod
-  }
-
-  private def getArgumentsTypes(primaryConstructorSymbol: universe.MethodSymbol):
-  List[universe.Type] = {
-    primaryConstructorSymbol.typeSignature
-      .paramLists
-      .head
-      .map(symbol => symbol.typeSignature)
-  }
-}
-
 class SpecificCaseClassSerializer[T <: Product](
   clazz: Class[T],
   scalaFieldSerializers: Array[TypeSerializer[_]]
@@ -129,4 +74,62 @@ class SpecificCaseClassSerializer[T <: Product](
     constructor = lookupConstructor(clazz)
   }
 
+}
+
+object SpecificCaseClassSerializer {
+
+  def lookupConstructor[T](clazz: Class[_]): MethodHandle = {
+    val types = findPrimaryConstructorParameterTypes(clazz, clazz.getClassLoader)
+
+    val constructor = clazz.getConstructor(types: _*)
+
+    val handle = MethodHandles
+      .lookup()
+      .unreflectConstructor(constructor)
+      .asSpreader(classOf[Array[AnyRef]], types.length)
+
+    handle
+  }
+
+  private def findPrimaryConstructorParameterTypes(cls: Class[_], cl: ClassLoader):
+  List[Class[_]] = {
+    val rootMirror = universe.runtimeMirror(cl)
+    val classSymbol = rootMirror.classSymbol(cls)
+
+    require(
+      classSymbol.isStatic,
+      s"""
+         |The class ${cls.getSimpleName} is an instance class, meaning it is not a member of a
+         |toplevel object, or of an object contained in a toplevel object,
+         |therefore it requires an outer instance to be instantiated, but we don't have a
+         |reference to the outer instance. Please consider changing the outer class to an object.
+         |""".stripMargin
+    )
+
+    val primaryConstructorSymbol = findPrimaryConstructorMethodSymbol(classSymbol)
+    val scalaTypes = getArgumentsTypes(primaryConstructorSymbol)
+    scalaTypes.map(tpe => scalaTypeToJavaClass(rootMirror)(tpe))
+  }
+
+  private def findPrimaryConstructorMethodSymbol(classSymbol: universe.ClassSymbol):
+  universe.MethodSymbol = {
+    classSymbol.toType
+      .decl(universe.termNames.CONSTRUCTOR)
+      .alternatives
+      .head
+      .asMethod
+  }
+
+  private def getArgumentsTypes(primaryConstructorSymbol: universe.MethodSymbol):
+  List[universe.Type] = {
+    primaryConstructorSymbol.typeSignature
+      .paramLists
+      .head
+      .map(symbol => symbol.typeSignature)
+  }
+
+  private def scalaTypeToJavaClass(mirror: universe.Mirror)(scalaType: universe.Type): Class[_] = {
+    val erasure = scalaType.erasure
+    mirror.runtimeClass(erasure)
+  }
 }

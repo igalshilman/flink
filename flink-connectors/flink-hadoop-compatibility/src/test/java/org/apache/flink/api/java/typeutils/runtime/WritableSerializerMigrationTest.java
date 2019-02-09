@@ -57,6 +57,9 @@ public class WritableSerializerMigrationTest extends TypeSerializerSnapshotMigra
 		return testSpecifications.get();
 	}
 
+	/**
+	 * A dummy class that is used in this test.
+	 */
 	public static final class WritableName implements Writable {
 
 		public static final long serialVersionUID = 1L;

@@ -57,6 +57,9 @@ public class ValueSerializerMigrationTest extends TypeSerializerSnapshotMigratio
 		return testSpecifications.get();
 	}
 
+	/**
+	 * A dummy class used for this test.
+	 */
 	public static final class NameValue implements Value {
 
 		public static final long serialVersionUID = 2277251654485371327L;

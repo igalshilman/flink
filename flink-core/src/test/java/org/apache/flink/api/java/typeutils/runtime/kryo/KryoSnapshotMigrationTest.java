@@ -19,11 +19,13 @@
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Animal;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Cat;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Dog;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Parrot;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 import com.esotericsoftware.kryo.serializers.DefaultSerializers.StringSerializer;
 import org.junit.runner.RunWith;
@@ -31,6 +33,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+
+import static org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer;
 
 /**
  * Tests migrations for {@link KryoSerializerSnapshot}.
@@ -47,24 +51,27 @@ public class KryoSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTe
 	@Parameterized.Parameters(name = "Test Specification = {0}")
 	public static Collection<Object[]> testSpecifications() {
 
-		final TestSpecification<Animal> genericCase = TestSpecification.<Animal>builder("1.6-kryo: empty config -> empty config", KryoSerializer.class, KryoSerializerSnapshot.class)
-			.withSerializerProvider(() -> new KryoSerializer<>(Animal.class, new ExecutionConfig()))
+		final TestSpecification<Animal> genericCase = TestSpecification.<Animal>builder("1.6-kryo: empty config -> empty config", KryoSerializer.class, KryoSerializerSnapshot.class, MigrationVersion.v1_6)
+			.withNewSerializerProvider(() -> new KryoSerializer<>(Animal.class, new ExecutionConfig()))
 			.withSnapshotDataLocation("flink-1.6-kryo-type-serializer-empty-config-snapshot")
 			.withTestData("flink-1.6-kryo-type-serializer-empty-config-data", 2);
 
-		final TestSpecification<Animal> additionalClasses = TestSpecification.<Animal>builder("1.6-kryo: empty config -> new classes", KryoSerializer.class, KryoSerializerSnapshot.class)
-			.withSerializerProvider(() -> {
+		TypeSerializerSchemaCompatibility<Animal> compatibleWithReconfigured =
+			compatibleWithReconfiguredSerializer(new KryoSerializer<>(Animal.class, new ExecutionConfig()));
+
+		final TestSpecification<Animal> additionalClasses = TestSpecification.<Animal>builder("1.6-kryo: empty config -> new classes", KryoSerializer.class, KryoSerializerSnapshot.class, MigrationVersion.v1_6)
+			.withNewSerializerProvider(() -> {
 				ExecutionConfig executionConfig = new ExecutionConfig();
 				executionConfig.registerKryoType(DummyClassOne.class);
 				executionConfig.registerTypeWithKryoSerializer(DummyClassTwo.class, StringSerializer.class);
 
 				return new KryoSerializer<>(Animal.class, executionConfig);
-			})
+			}, compatibleWithReconfigured)
 			.withSnapshotDataLocation("flink-1.6-kryo-type-serializer-empty-config-snapshot")
 			.withTestData("flink-1.6-kryo-type-serializer-empty-config-data", 2);
 
-		final TestSpecification<Animal> differentOrder = TestSpecification.<Animal>builder("1.6-kryo: registered classes in a different order", KryoSerializer.class, KryoSerializerSnapshot.class)
-			.withSerializerProvider(() -> {
+		final TestSpecification<Animal> differentOrder = TestSpecification.<Animal>builder("1.6-kryo: registered classes in a different order", KryoSerializer.class, KryoSerializerSnapshot.class, MigrationVersion.v1_6)
+			.withNewSerializerProvider(() -> {
 
 				ExecutionConfig executionConfig = new ExecutionConfig();
 				executionConfig.registerKryoType(DummyClassOne.class);
@@ -74,7 +81,7 @@ public class KryoSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTe
 				executionConfig.registerKryoType(Parrot.class);
 
 				return new KryoSerializer<>(Animal.class, executionConfig);
-			})
+			}, compatibleWithReconfigured)
 			.withSnapshotDataLocation("flink-1.6-kryo-type-serializer-snapshot")
 			.withTestData("flink-1.6-kryo-type-serializer-data", 2);
 
@@ -92,4 +99,5 @@ public class KryoSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTe
 	public static final class DummyClassTwo {
 
 	}
+
 }

@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.scala.typeutils
 
+import java.io.ObjectInputStream
+
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerConfigSnapshot
-import java.io.ObjectInputStream
-
 import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializer.lookupConstructor
 
 import scala.collection.JavaConverters._
@@ -84,7 +84,7 @@ class ScalaCaseClassSerializer[T <: Product](
 
 object ScalaCaseClassSerializer {
 
-  def lookupConstructor[T](cls: Class[_]): Array[AnyRef] => T = {
+  def lookupConstructor[T](cls: Class[T]): Array[AnyRef] => T = {
     val rootMirror = universe.runtimeMirror(cls.getClassLoader)
     val classSymbol = rootMirror.classSymbol(cls)
 
@@ -101,6 +101,9 @@ object ScalaCaseClassSerializer {
     val primaryConstructorSymbol = classSymbol.toType
       .decl(universe.termNames.CONSTRUCTOR)
       .alternatives
+      .collectFirst({
+        case constructorSymbol: universe.MethodSymbol if constructorSymbol.isPrimaryConstructor => constructorSymbol
+      })
       .head
       .asMethod
 

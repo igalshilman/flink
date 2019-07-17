@@ -197,11 +197,11 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 			if (stream == null) {
 				return SnapshotResult.of(null);
 			}
-			if (!closableRegistry.unregisterCloseable(stream)) {
+			if (!closableRegistry.unregisterCloseable(stream.getDelegate())) {
 				return SnapshotResult.of(null);
 			}
-			snapshotCloseableRegistry.registerCloseable(stream);
-			return SnapshotResult.of(stream.closeAndGetHandle());
+			T closed = stream.closeAndGetHandle();
+			return SnapshotResult.of(closed);
 		}
 
 		@Override

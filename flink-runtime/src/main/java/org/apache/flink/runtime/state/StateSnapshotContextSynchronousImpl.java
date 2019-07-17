@@ -40,15 +40,15 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 
 	/** Checkpoint timestamp of the snapshot. */
 	private final long checkpointTimestamp;
-	
-	/** Factory for the checkpointing stream */
+
+	/** Factory for the checkpointing stream. */
 	private final CheckpointStreamFactory streamFactory;
-	
-	/** Key group range for the operator that created this context. Only for keyed operators */
+
+	/** Key group range for the operator that created this context. Only for keyed operators. */
 	private final KeyGroupRange keyGroupRange;
 
 	/**
-	 * Registry for opened streams to participate in the lifecycle of the stream task. Hence, this registry should be 
+	 * Registry for opened streams to participate in the lifecycle of the stream task. Hence, this registry should be
 	 * obtained from and managed by the stream task.
 	 */
 	private final CloseableRegistry closableRegistry;
@@ -77,7 +77,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 			CheckpointStreamFactory streamFactory,
 			KeyGroupRange keyGroupRange,
 			CloseableRegistry closableRegistry) {
-		
+
 		this.checkpointId = checkpointId;
 		this.checkpointTimestamp = checkpointTimestamp;
 		this.streamFactory = Preconditions.checkNotNull(streamFactory);
@@ -129,7 +129,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		}
 		return keyedStateCheckpointClosingFuture;
 	}
-	
+
 	@Nonnull
 	public RunnableFuture<SnapshotResult<OperatorStateHandle>> getOperatorStateStreamFuture() throws IOException {
 		if (null == operatorStateCheckpointClosingFuture) {

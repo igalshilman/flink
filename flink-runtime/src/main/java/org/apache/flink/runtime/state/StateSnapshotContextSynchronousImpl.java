@@ -65,7 +65,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		this.checkpointTimestamp = checkpointTimestamp;
 		this.streamFactory = null;
 		this.keyGroupRange = KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
-		this.closableRegistry = null;
+		this.closableRegistry = new CloseableRegistry();
 	}
 
 	public StateSnapshotContextSynchronousImpl(

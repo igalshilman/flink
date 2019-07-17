@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.AsyncSnapshotCallable.AsyncSnapshotTask;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;

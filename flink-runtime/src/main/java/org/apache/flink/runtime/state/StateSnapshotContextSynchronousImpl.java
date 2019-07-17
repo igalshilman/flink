@@ -194,11 +194,14 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 
 		@Override
 		protected SnapshotResult<T> callInternal() throws Exception {
-			if (closableRegistry != null && closableRegistry.unregisterCloseable(stream)) {
-				snapshotCloseableRegistry.registerCloseable(stream);
+			if (stream == null) {
+				return SnapshotResult.of(null);
 			}
-			T keyGroupsStateHandle = closeAndUnregisterStreamToObtainStateHandle(stream);
-			return SnapshotResult.of(keyGroupsStateHandle);
+			if (!closableRegistry.unregisterCloseable(stream)) {
+				return SnapshotResult.of(null);
+			}
+			snapshotCloseableRegistry.registerCloseable(stream);
+			return SnapshotResult.of(stream.closeAndGetHandle());
 		}
 
 		@Override

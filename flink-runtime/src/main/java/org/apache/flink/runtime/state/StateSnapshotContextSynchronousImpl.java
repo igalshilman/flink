@@ -154,29 +154,6 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 
 	@Override
 	public void close() throws IOException {
-		IOException exception = null;
-
-		if (keyedStateCheckpointOutputStream != null) {
-			try {
-				closeAndUnregisterStream(keyedStateCheckpointOutputStream);
-			} catch (IOException e) {
-				exception = new IOException("Could not close the raw keyed state checkpoint output stream.", e);
-			}
-		}
-
-		if (operatorStateCheckpointOutputStream != null) {
-			try {
-				closeAndUnregisterStream(operatorStateCheckpointOutputStream);
-			} catch (IOException e) {
-				exception = ExceptionUtils.firstOrSuppressed(
-					new IOException("Could not close the raw operator state checkpoint output stream.", e),
-					exception);
-			}
-		}
-
-		if (exception != null) {
-			throw exception;
-		}
 	}
 
 	@SuppressWarnings("unchecked")
